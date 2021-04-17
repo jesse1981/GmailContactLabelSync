@@ -43,6 +43,7 @@ function applyGroupLabels()	{
       try {
         let EmailField = groupContacts[i].getEmails()
         for (var j in EmailField){
+          //console.log(EmailField[j].getAddress())
           emails.push(EmailField[j].getAddress());
         }
         label = label.replace("System Group: ","");
@@ -71,7 +72,7 @@ function applyGroupLabels()	{
       for (var x in threads) threads[x].addLabel(gmailLabel);
 
       console.log("Processed",threads.length,"threads")
-      if (threads.length < threadMax) threadAll = false;
+      if (threads.length == threadMax) threadAll = false;
     }
     if (threadAll) break;
     else threadOffset += threadMax;
