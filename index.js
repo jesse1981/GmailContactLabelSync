@@ -43,7 +43,6 @@ function applyGroupLabels()	{
       try {
         let EmailField = groupContacts[i].getEmails()
         for (var j in EmailField){
-          //console.log(EmailField[j].getAddress())
           emails.push(EmailField[j].getAddress());
         }
         label = label.replace("System Group: ","");
@@ -57,26 +56,21 @@ function applyGroupLabels()	{
     }
   }
 
-  while (true) {
-    var threadAll = true;
+  while (Object.keys(contacts).length>0) {
     for (var label in contacts) {
       if (contacts[label].length) console.log("Processing:",label)
-      else { console.log("Skipping"); continue; }
+      else { console.log("Skipping"); delete contacts[label]; continue; }
 
       var gmailLabel = GmailApp.getUserLabelByName(parentLabel + "/" + label);
       var emailString = contacts[label].join(' OR ');
-      var searchString = 'from:(' + emailString + ') OR to:(' + emailString + ')'
+      var searchString = '(from:(' + emailString + ') OR to:(' + emailString + ')) AND NOT label:'+parentLabel+"/"+label
       console.log(searchString)
 
       var threads = GmailApp.search(searchString,threadOffset,threadMax)
       for (var x in threads) threads[x].addLabel(gmailLabel);
 
       console.log("Processed",threads.length,"threads")
-      if (threads.length == threadMax) threadAll = false;
+      if (threads.length < threadMax) delete contacts[label];
     }
-    if (threadAll) break;
-    else threadOffset += threadMax;
   }
-  
-  
-}// applyGroupLabel
+}
