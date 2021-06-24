@@ -8,6 +8,7 @@
    may appear in your gmail account activity (run by a 10.*.*.*	address, corresponding to an internal google-server)
 */  
 function createNestedGmailLabel(name) {
+  if (!name) return false;
   var labels = name.split("/");
   var gmail, label = "";
 
@@ -23,46 +24,64 @@ function createNestedGmailLabel(name) {
   return gmail;
 
 }
+function getAllGroups(nextPageToken) {
+  var groups = [];
+  var options = {}
+  if (nextPageToken) options.pageToken = nextPageToken;
+  var g = People.ContactGroups.list(options);
+  
+  if (g.contactGroups) groups = groups.concat(g.contactGroups)
+  if (g.nextPageToken) groups = groups.concat(getAllGroups(g.nextPageToken))
+  return groups;
+}
+function getMembers(res) {
+  return People.ContactGroups.get(res)
+}
+function getAllPeople(nextPageToken) {
+  var peopleList = [];
+  var options = {
+    personFields: "names,emailAddresses,memberships"
+  }
+  if (nextPageToken) options.pageToken = nextPageToken;
+  var g = People.People.Connections.list('people/me',options)
+
+  if (g.connections) peopleList = peopleList.concat(g.connections)
+  if (g.nextPageToken) peopleList = peopleList.concat(getAllPeople(g.nextPageToken))
+  return peopleList;
+}
 
 function applyGroupLabels()	{
   // Variables
   var threadMax = 20;
   var threadOffset = 0
-  var parentLabel = "GmailContactLabel"
+  var parentLabel = "GmailContactLabel";
 
-  // Get all labels and their contacts
-  var contacts = {};
-  var labels = ContactsApp.getContactGroups();
-  for (var l in labels) {
-    label = labels[l].getName();
-    console.log(label);
-    let groupContacts = ContactsApp.getContactGroup(label).getContacts();
-    let emails = [];
-    for (var i in groupContacts) {
-      if (label.indexOf("My Contacts")>-1) continue;
-      try {
-        let EmailField = groupContacts[i].getEmails()
-        for (var j in EmailField){
-          emails.push(EmailField[j].getAddress());
+  var contacts = getAllGroups();
+  var allPeople = getAllPeople();
+
+  for (var l in contacts) {
+    contacts[l].emails = []
+
+    var res = contacts[l].resourceName;
+    
+    for (var x in allPeople) {
+      for (var y in allPeople[x].memberships) {
+        if (allPeople[x].memberships[y].contactGroupMembership.contactGroupResourceName == res) {
+          for (var z in allPeople[x].emailAddresses) contacts[l].emails.push(allPeople[x].emailAddresses[z].value);
         }
-        label = label.replace("System Group: ","");
-        contacts[label] = emails;
-        createNestedGmailLabel(parentLabel + "/" + label);
       }
-      catch (err) {
-        console.log("Caught:",err)
-      }
-      
     }
   }
 
   while (Object.keys(contacts).length>0) {
-    for (var label in contacts) {
-      if (contacts[label].length) console.log("Processing:",label)
-      else { console.log("Skipping"); delete contacts[label]; continue; }
+    for (var c in contacts) {
+      var label = contacts[c].formattedName;
+      if (label == "Starred" || label == "My Contacts") { console.log("Skipping",label); delete contacts[c]; continue; }
+      if (contacts[c].emails.length) console.log("Processing:",label)
+      else { console.log("Skipping",label); delete contacts[c]; continue; }
 
       var gmailLabel = GmailApp.getUserLabelByName(parentLabel + "/" + label);
-      var emailString = contacts[label].join(' OR ');
+      var emailString = contacts[c].emails.join(' OR ');
       var searchString = '(from:(' + emailString + ') OR to:(' + emailString + ')) AND NOT label:'+parentLabel+"/"+label
       console.log(searchString)
 
@@ -70,7 +89,7 @@ function applyGroupLabels()	{
       for (var x in threads) threads[x].addLabel(gmailLabel);
 
       console.log("Processed",threads.length,"threads")
-      if (threads.length < threadMax) delete contacts[label];
+      if (threads.length < threadMax) delete contacts[c];
     }
   }
 }
