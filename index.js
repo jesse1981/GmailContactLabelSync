@@ -34,9 +34,6 @@ function getAllGroups(nextPageToken) {
   if (g.nextPageToken) groups = groups.concat(getAllGroups(g.nextPageToken))
   return groups;
 }
-function getMembers(res) {
-  return People.ContactGroups.get(res)
-}
 function getAllPeople(nextPageToken) {
   var peopleList = [];
   var options = {
