@@ -46,6 +46,15 @@ function getAllPeople(nextPageToken) {
   if (g.nextPageToken) peopleList = peopleList.concat(getAllPeople(g.nextPageToken))
   return peopleList;
 }
+/* Log Level
+1 = Threads Processed
+2 = Threads Processing
+3 = Everything
+*/
+var logLevel = 1;
+function logOutput(level,msg) {
+  if (level <= logLevel) console.log(msg)
+}
 
 function applyGroupLabels()	{
   // Variables
@@ -53,40 +62,41 @@ function applyGroupLabels()	{
   var threadOffset = 0
   var parentLabel = "GmailContactLabel";
 
-  var contacts = getAllGroups();
+  var allGroups = getAllGroups();
   var allPeople = getAllPeople();
 
-  for (var l in contacts) {
-    contacts[l].emails = []
+  for (var l in allGroups) {
+    allGroups[l].emails = []
 
-    var res = contacts[l].resourceName;
+    var res = allGroups[l].resourceName;
     
     for (var x in allPeople) {
       for (var y in allPeople[x].memberships) {
         if (allPeople[x].memberships[y].contactGroupMembership.contactGroupResourceName == res) {
-          for (var z in allPeople[x].emailAddresses) contacts[l].emails.push(allPeople[x].emailAddresses[z].value);
+          for (var z in allPeople[x].emailAddresses) allGroups[l].emails.push(allPeople[x].emailAddresses[z].value);
         }
       }
     }
   }
 
-  while (Object.keys(contacts).length>0) {
-    for (var c in contacts) {
-      var label = contacts[c].formattedName;
-      if (label == "Starred" || label == "My Contacts") { console.log("Skipping",label); delete contacts[c]; continue; }
-      if (contacts[c].emails.length) console.log("Processing:",label)
-      else { console.log("Skipping",label); delete contacts[c]; continue; }
+  while (Object.keys(allGroups).length>0) {
+    for (var c in allGroups) {
+      var label = allGroups[c].formattedName;
+      if (label == "Starred" || label == "My Contacts") { logOutput(2,"Skipping",label); delete allGroups[c]; continue; }
+      if (allGroups[c].emails.length) logOutput(2,"Processing:",label)
+      else { logOutput(2,"Skipping",label); delete allGroups[c]; continue; }
 
       var gmailLabel = GmailApp.getUserLabelByName(parentLabel + "/" + label);
-      var emailString = contacts[c].emails.join(' OR ');
+      var emailString = allGroups[c].emails.join(' OR ');
       var searchString = '(from:(' + emailString + ') OR to:(' + emailString + ')) AND NOT label:'+parentLabel+"/"+label
-      console.log(searchString)
+      logOutput(3,searchString)
 
       var threads = GmailApp.search(searchString,threadOffset,threadMax)
       for (var x in threads) threads[x].addLabel(gmailLabel);
 
-      console.log("Processed",threads.length,"threads")
-      if (threads.length < threadMax) delete contacts[c];
+      let thisLogLevel = (threads.length) ? 1:2;
+      logOutput(thisLogLevel,"(" + label + ") Processed " + threads.length + " threads")
+      if (threads.length < threadMax) delete allGroups[c];
     }
   }
 }
