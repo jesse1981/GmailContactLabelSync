@@ -82,11 +82,12 @@ function applyGroupLabels()	{
   while (Object.keys(allGroups).length>0) {
     for (var c in allGroups) {
       var label = allGroups[c].formattedName;
-      if (label == "Starred" || label == "My Contacts") { logOutput(2,"Skipping",label); delete allGroups[c]; continue; }
-      if (allGroups[c].emails.length) logOutput(2,"Processing:",label)
-      else { logOutput(2,"Skipping",label); delete allGroups[c]; continue; }
+      if (label == "Starred" || label == "My Contacts") { logOutput(2,"Skipping " + label); delete allGroups[c]; continue; }
+      if (allGroups[c].emails.length) logOutput(2,"Processing: " + label)
+      else { logOutput(2,"Skipping " + label); delete allGroups[c]; continue; }
 
-      var gmailLabel = GmailApp.getUserLabelByName(parentLabel + "/" + label);
+      var gmailLabel = createNestedGmailLabel(parentLabel + "/" + label)
+      logOutput(3,"gmailLabel:" + gmailLabel);
       var emailString = allGroups[c].emails.join(' OR ');
       var searchString = '(from:(' + emailString + ') OR to:(' + emailString + ')) AND NOT label:'+parentLabel+"/"+label
       logOutput(3,searchString)
